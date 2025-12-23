@@ -7,7 +7,7 @@
 - 基础设施层
   - PaddleOCR接口
   - 大模型（Message, Client）
-- PDF Pipline
+- PDF Pipeline
   - 调用 PaddleOCR 解析结果
   - 文本增强（去除页眉页脚等）
   - 图片索引（索引到文本引用位置）
