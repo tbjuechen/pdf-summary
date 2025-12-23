@@ -23,7 +23,7 @@
 为了防止main分支混乱，请在分支中完成开发，并通过pr合并到master。
 1. 环境配置
 ```bash
-git clone xxx
+git clone https://github.com/tbjuechen/pdf-summary.git
 cd pdf-summary
 pip install -r requirements.txt
 ```
