@@ -109,7 +109,8 @@ class LLMClient:
         """
         params = self._build_request_params(messages, **kwargs)
         response = self.sync_client.chat.completions.create(**params)
-        return response.choices[0].message.content.strip()
+        assert response.choices[0].message is not None, "模型未返回消息内容"
+        return Message.assistant(response.choices[0].message.content.strip())
     
     async def achat(
         self, 
@@ -124,7 +125,8 @@ class LLMClient:
         """
         params = self._build_request_params(messages, **kwargs)
         response = await self.async_client.chat.completions.create(**params)
-        return response.choices[0].message.content.strip()
+        assert response.choices[0].message is not None, "模型未返回消息内容"
+        return Message.assistant(response.choices[0].message.content.strip())
     
     def simple_chat(self, system_prompt: str, user_message: str, image_url: str = None, **kwargs) -> str:
         """
