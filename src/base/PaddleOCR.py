@@ -3,6 +3,7 @@ import os
 import shutil
 import requests
 from typing import Optional, Dict, List, Any
+from loguru import logger
 
 class PaddleOCRClient:
     """
@@ -64,7 +65,7 @@ class PaddleOCRClient:
             "useChartRecognition": kwargs.get("useChartRecognition", False),
         }
 
-        print(f"Sending request to {self.api_url} for file {file_path}...")
+        logger.info(f"[PaddleOCR] Sending request to {self.api_url} for file {file_path}...")
         response = requests.post(self.api_url, json=payload, headers=headers)
         
         if response.status_code != 200:
@@ -72,7 +73,7 @@ class PaddleOCRClient:
 
         result = response.json().get("result", {})
         if not result:
-            print("Warning: No result found in response.")
+            logger.warning("[PaddleOCR] No result found in response.")
             return []
 
         generated_files = []
@@ -88,7 +89,7 @@ class PaddleOCRClient:
             with open(md_filename, "w", encoding="utf-8") as md_file:
                 md_file.write(text_content)
             generated_files.append(md_filename)
-            print(f"Markdown document saved at {md_filename}")
+            logger.debug(f"[PaddleOCR] Markdown document saved at {md_filename}")
 
             # 保存 Markdown 中引用的图片
             if "images" in res["markdown"]:
@@ -104,7 +105,7 @@ class PaddleOCRClient:
             with open(full_md_filename, "w", encoding="utf-8") as f:
                 f.write("\n\n".join(full_markdown_texts))
             generated_files.append(full_md_filename)
-            print(f"Full markdown document saved at {full_md_filename}")
+            logger.info(f"[PaddleOCR] Full markdown document saved at {full_md_filename}")
 
         return generated_files
 
@@ -117,9 +118,9 @@ class PaddleOCRClient:
                 img_bytes = requests.get(img_url).content
                 with open(full_img_path, "wb") as img_file:
                     img_file.write(img_bytes)
-                print(f"Image saved to: {full_img_path}")
+                logger.debug(f"[PaddleOCR] Image saved to: {full_img_path}")
             except Exception as e:
-                print(f"Failed to save image {img_path}: {e}")
+                logger.error(f"[PaddleOCR] Failed to save image {img_path}: {e}")
 
     def _save_remote_images(self, images_map: Dict[str, str], output_dir: str, suffix: str = ""):
         """下载并保存结果图片"""
@@ -130,11 +131,11 @@ class PaddleOCRClient:
                     filename = os.path.join(output_dir, f"{img_name}{suffix}.jpg")
                     with open(filename, "wb") as f:
                         f.write(img_response.content)
-                    print(f"Image saved to: {filename}")
+                    logger.debug(f"[PaddleOCR] Image saved to: {filename}")
                 else:
-                    print(f"Failed to download image {img_name}, status code: {img_response.status_code}")
+                    logger.error(f"[PaddleOCR] Failed to download image {img_name}, status code: {img_response.status_code}")
             except Exception as e:
-                print(f"Error downloading image {img_name}: {e}")
+                logger.error(f"[PaddleOCR] Error downloading image {img_name}: {e}")
 
 if __name__ == "__main__":
     # 示例用法
@@ -146,8 +147,8 @@ if __name__ == "__main__":
         client = PaddleOCRClient()
         try:
             files = client.parse(file_path)
-            print(f"Successfully processed. Generated files: {files}")
+            logger.success(f"[PaddleOCR] Successfully processed. Generated files: {files}")
         except Exception as e:
-            print(f"Error processing file: {e}")
+            logger.error(f"[PaddleOCR] Error processing file: {e}")
     else:
-        print(f"Example file not found: {file_path}")
+        logger.warning(f"[PaddleOCR] Example file not found: {file_path}")
