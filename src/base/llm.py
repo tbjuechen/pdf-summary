@@ -202,4 +202,14 @@ class LLMClient:
         except Exception:
             pass
 
+if __name__ == "__main__":
+    # 调用示例
+    import dotenv
+    dotenv.load_dotenv()
     
+    llm_client = LLMClient()
+    response = llm_client.simple_chat(
+        system_prompt="You are a helpful assistant.",
+        user_message="Hello, how are you?"
+    )
+    logger.info(f"模型回复：{response}")
