@@ -76,13 +76,17 @@ class PaddleOCRClient:
             return []
 
         generated_files = []
+        full_markdown_texts = []
 
         layout_results = result.get("layoutParsingResults", [])
         for i, res in enumerate(layout_results):
+            text_content = res["markdown"]["text"]
+            full_markdown_texts.append(text_content)
+
             # 保存 Markdown
             md_filename = os.path.join(output_dir, f"doc_{i}.md")
             with open(md_filename, "w", encoding="utf-8") as md_file:
-                md_file.write(res["markdown"]["text"])
+                md_file.write(text_content)
             generated_files.append(md_filename)
             print(f"Markdown document saved at {md_filename}")
 
@@ -93,6 +97,14 @@ class PaddleOCRClient:
             # 保存输出的分析图片
             if "outputImages" in res:
                 self._save_remote_images(res["outputImages"], output_dir, suffix=f"_{i}")
+
+        # 保存合并后的 Markdown
+        if full_markdown_texts:
+            full_md_filename = os.path.join(output_dir, "doc.md")
+            with open(full_md_filename, "w", encoding="utf-8") as f:
+                f.write("\n\n".join(full_markdown_texts))
+            generated_files.append(full_md_filename)
+            print(f"Full markdown document saved at {full_md_filename}")
 
         return generated_files
 
