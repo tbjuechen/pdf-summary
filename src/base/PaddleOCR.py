@@ -1,7 +1,8 @@
 import base64
 import os
 import shutil
-import requests
+import asyncio
+import httpx
 from typing import Optional, Dict, List, Any
 from loguru import logger
 
@@ -23,7 +24,7 @@ class PaddleOCRClient:
         if not self.token:
             raise ValueError("Token must be provided via argument or environment variable PADDLE_OCR_TOKEN")
 
-    def parse(self, file_path: str, output_dir: str = "output", **kwargs) -> List[str]:
+    async def parse(self, file_path: str, output_dir: str = "output", **kwargs) -> List[str]:
         """
         解析文件并保存结果
         :param file_path: PDF 或图片文件路径
@@ -40,6 +41,7 @@ class PaddleOCRClient:
 
         # 如果目录存在，先删除再创建
         if os.path.exists(output_dir):
+            logger.warning(f"[PaddleOCR] Output directory {output_dir} exists. It will be removed and recreated.")
             shutil.rmtree(output_dir)
         os.makedirs(output_dir, exist_ok=True)
 
@@ -66,38 +68,40 @@ class PaddleOCRClient:
         }
 
         logger.info(f"[PaddleOCR] Sending request to {self.api_url} for file {file_path}...")
-        response = requests.post(self.api_url, json=payload, headers=headers)
         
-        if response.status_code != 200:
-            raise Exception(f"API request failed with status code {response.status_code}: {response.text}")
-
-        result = response.json().get("result", {})
-        if not result:
-            logger.warning("[PaddleOCR] No result found in response.")
-            return []
-
-        generated_files = []
-        full_markdown_texts = []
-
-        layout_results = result.get("layoutParsingResults", [])
-        for i, res in enumerate(layout_results):
-            text_content = res["markdown"]["text"]
-            full_markdown_texts.append(text_content)
-
-            # 保存 Markdown
-            md_filename = os.path.join(output_dir, f"doc_{i}.md")
-            with open(md_filename, "w", encoding="utf-8") as md_file:
-                md_file.write(text_content)
-            generated_files.append(md_filename)
-            logger.debug(f"[PaddleOCR] Markdown document saved at {md_filename}")
-
-            # 保存 Markdown 中引用的图片
-            if "images" in res["markdown"]:
-                self._save_images(res["markdown"]["images"], output_dir)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(self.api_url, json=payload, headers=headers)
             
-            # 保存输出的分析图片
-            if "outputImages" in res:
-                self._save_remote_images(res["outputImages"], output_dir, suffix=f"_{i}")
+            if response.status_code != 200:
+                raise Exception(f"API request failed with status code {response.status_code}: {response.text}")
+
+            result = response.json().get("result", {})
+            if not result:
+                logger.warning("[PaddleOCR] No result found in response.")
+                return []
+
+            generated_files = []
+            full_markdown_texts = []
+
+            layout_results = result.get("layoutParsingResults", [])
+            for i, res in enumerate(layout_results):
+                text_content = res["markdown"]["text"]
+                full_markdown_texts.append(text_content)
+
+                # 保存 Markdown
+                md_filename = os.path.join(output_dir, f"doc_{i}.md")
+                with open(md_filename, "w", encoding="utf-8") as md_file:
+                    md_file.write(text_content)
+                generated_files.append(md_filename)
+                logger.debug(f"[PaddleOCR] Markdown document saved at {md_filename}")
+
+                # 保存 Markdown 中引用的图片
+                if "images" in res["markdown"]:
+                    await self._save_images(client, res["markdown"]["images"], output_dir)
+                
+                # 保存输出的分析图片
+                if "outputImages" in res:
+                    await self._save_remote_images(client, res["outputImages"], output_dir, suffix=f"_{i}")
 
         # 保存合并后的 Markdown
         if full_markdown_texts:
@@ -109,33 +113,35 @@ class PaddleOCRClient:
 
         return generated_files
 
-    def _save_images(self, images_map: Dict[str, str], output_dir: str):
+    async def _save_images(self, client: httpx.AsyncClient, images_map: Dict[str, str], output_dir: str):
         """下载并保存 Markdown 中的图片"""
+        tasks = []
         for img_path, img_url in images_map.items():
             full_img_path = os.path.join(output_dir, img_path)
-            os.makedirs(os.path.dirname(full_img_path), exist_ok=True)
-            try:
-                img_bytes = requests.get(img_url).content
-                with open(full_img_path, "wb") as img_file:
-                    img_file.write(img_bytes)
-                logger.debug(f"[PaddleOCR] Image saved to: {full_img_path}")
-            except Exception as e:
-                logger.error(f"[PaddleOCR] Failed to save image {img_path}: {e}")
+            tasks.append(self._download_and_save(client, img_url, full_img_path))
+        await asyncio.gather(*tasks)
 
-    def _save_remote_images(self, images_map: Dict[str, str], output_dir: str, suffix: str = ""):
+    async def _save_remote_images(self, client: httpx.AsyncClient, images_map: Dict[str, str], output_dir: str, suffix: str = ""):
         """下载并保存结果图片"""
+        tasks = []
         for img_name, img_url in images_map.items():
-            try:
-                img_response = requests.get(img_url)
-                if img_response.status_code == 200:
-                    filename = os.path.join(output_dir, f"{img_name}{suffix}.jpg")
-                    with open(filename, "wb") as f:
-                        f.write(img_response.content)
-                    logger.debug(f"[PaddleOCR] Image saved to: {filename}")
-                else:
-                    logger.error(f"[PaddleOCR] Failed to download image {img_name}, status code: {img_response.status_code}")
-            except Exception as e:
-                logger.error(f"[PaddleOCR] Error downloading image {img_name}: {e}")
+            filename = os.path.join(output_dir, f"{img_name}{suffix}.jpg")
+            tasks.append(self._download_and_save(client, img_url, filename))
+        await asyncio.gather(*tasks)
+
+    async def _download_and_save(self, client: httpx.AsyncClient, url: str, save_path: str):
+        """通用下载保存方法"""
+        try:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            response = await client.get(url)
+            if response.status_code == 200:
+                with open(save_path, "wb") as f:
+                    f.write(response.content)
+                logger.debug(f"[PaddleOCR] Image saved to: {save_path}")
+            else:
+                logger.error(f"[PaddleOCR] Failed to download image {url}, status code: {response.status_code}")
+        except Exception as e:
+            logger.error(f"[PaddleOCR] Failed to save image {save_path}: {e}")
 
 if __name__ == "__main__":
     # 示例用法
@@ -146,7 +152,8 @@ if __name__ == "__main__":
     if os.path.exists(file_path):
         client = PaddleOCRClient()
         try:
-            files = client.parse(file_path)
+            # 使用 asyncio.run 运行异步方法
+            files = asyncio.run(client.parse(file_path))
             logger.success(f"[PaddleOCR] Successfully processed. Generated files: {files}")
         except Exception as e:
             logger.error(f"[PaddleOCR] Error processing file: {e}")
