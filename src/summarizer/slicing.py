@@ -11,7 +11,7 @@ sys.path.append(os.path.join(project_root, "src"))
 dotenv.load_dotenv(os.path.join(project_root, ".env"))
 
 # 导入组长写的 LLMClient 类
-from base.llm import LLMClient
+from base import LLMClient, Message
 
 class PaperSlicer:
     def __init__(self, output_dir="gen_output_debug"):
@@ -52,18 +52,14 @@ class PaperSlicer:
         4. 片段必须按原文顺序。
         """
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"论文原文如下:\n\n{full_text}"}
-        ]
-
         print(f"🤖 正在调用组长的 LLMClient (模型: {self.client.model})...")
 
         try:
             # 调用组长的同步聊天接口
             # 传入 response_format 强制要求返回 JSON 对象
-            response_msg = self.client.chat(
-                messages=messages,
+            response_msg = self.client.simple_chat(
+                system_prompt=system_prompt,
+                user_message=f"论文原文如下:\n\n{full_text}",
                 response_format={"type": "json_object"}
             )
             
@@ -136,7 +132,7 @@ class PaperSlicer:
 # --- 运行入口 ---
 if __name__ == "__main__":
     # 替换为你实际的文件名
-    input_file = '通过仿生多智能体智能图推理实现科学发现的自动化.pdf_by_PaddleOCR-VL.md'
+    input_file = 'output/PDF-example/doc.md'
     
     slicer = PaperSlicer()
     slicer.run_slicing(input_file)
