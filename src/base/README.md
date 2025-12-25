@@ -6,4 +6,4 @@
 - **OPENAI_MODEL**: 模型名
 - **OPENAI_API_KEY**: 模型提供商api-key
 - **OPENAI_API_BASE**: 模型提供商
-- ****
+- **PADDLE_OCR_TOKEN**: PaddleOCR token
