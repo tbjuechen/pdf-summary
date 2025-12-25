@@ -1,6 +1,9 @@
 import os
 from typing import List, Dict, Optional, Union, Any
+
 from openai import OpenAI, AsyncOpenAI
+from loguru import logger
+
 from .message import Message
 
 
@@ -108,7 +111,9 @@ class LLMClient:
         :return: 模型回复内容
         """
         params = self._build_request_params(messages, **kwargs)
+        logger.debug(f"[大模型] 同步请求：{[msg.__str__() for msg in messages]}")
         response = self.sync_client.chat.completions.create(**params)
+        logger.debug(f"[大模型] 同步响应：{response}")
         assert response.choices[0].message is not None, "模型未返回消息内容"
         return Message.assistant(response.choices[0].message.content.strip())
     
@@ -124,7 +129,9 @@ class LLMClient:
         :return: 模型回复内容
         """
         params = self._build_request_params(messages, **kwargs)
+        logger.debug(f"[大模型] 异步请求：{[msg.__str__() for msg in messages]}")
         response = await self.async_client.chat.completions.create(**params)
+        logger.debug(f"[大模型] 异步响应：{response}")
         assert response.choices[0].message is not None, "模型未返回消息内容"
         return Message.assistant(response.choices[0].message.content.strip())
     
