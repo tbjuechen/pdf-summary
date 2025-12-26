@@ -5,3 +5,4 @@ httpx
 loguru
 pytest
 gradio
+gradio_pdf
