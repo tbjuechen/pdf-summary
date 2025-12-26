@@ -1,13 +1,13 @@
 import gradio as gr
 import os
-import asyncio
+import time
 
 from gradio_pdf import PDF
 
 # ==========================================
 # 1. 核心处理逻辑 (模拟解析和总结)
 # ==========================================
-async def mock_parse(file_obj):
+def mock_parse(file_obj):
     if file_obj is None:
         return "请先上传文件"
     
@@ -20,16 +20,16 @@ async def mock_parse(file_obj):
     filename = os.path.basename(file_path)
     
     print(f"正在解析文件: {filename}...")
-    await asyncio.sleep(1) 
+    time.sleep(1) 
     
     return f"""# {filename} 解析结果\n\n**文件名**: {filename}\n**文件大小**: {os.path.getsize(file_path)/1024:.1f} KB\n\n这里是模拟的解析内容..."""
 
-async def mock_summarize(md_content):
+def mock_summarize(md_content):
     if not md_content:
         return "无内容"
         
     print("正在生成总结...")
-    await asyncio.sleep(1)
+    time.sleep(1)
     return f"【AI 总结】\n这是一份关于该文档的总结...\n\n基于内容片段：{md_content[:20]}..."
 
 # ==========================================
@@ -59,7 +59,8 @@ def create_demo(parse_func, summarize_func):
             # --- 右侧：结果输出 ---
             with gr.Column(scale=5):
                 with gr.Accordion("Markdown 解析结果", open=True):
-                    md_output = gr.Markdown()
+                    # 使用 Textbox 可以更方便地复制内容，也能看到原始 Markdown 语法
+                    md_output = gr.Textbox(label="Markdown 内容", lines=20)
                 
                 # 新增：单独的总结按钮（可选）
                 with gr.Row():
@@ -71,12 +72,21 @@ def create_demo(parse_func, summarize_func):
         # 4. 交互逻辑
         # ==========================================
         
+        # 辅助函数：控制按钮状态
+        def disable_btn():
+            return gr.Button(interactive=False)
+            
+        def enable_btn():
+            return gr.Button(interactive=True)
+
         # 上传文件后 -> 更新预览
         file_input.change(fn=display_pdf, inputs=file_input, outputs=pdf_preview)
         
-        # 点击“开始解析” -> 先解析 -> 再总结 (链式调用)
-        run_btn.click(fn=parse_func, inputs=file_input, outputs=md_output) \
-               .then(fn=summarize_func, inputs=md_output, outputs=summary_output)
+        # 点击“开始解析” -> 禁用按钮 -> 解析 -> 总结 -> 启用按钮
+        run_btn.click(fn=disable_btn, inputs=None, outputs=run_btn) \
+               .then(fn=parse_func, inputs=file_input, outputs=md_output) \
+               .then(fn=summarize_func, inputs=md_output, outputs=summary_output) \
+               .then(fn=enable_btn, inputs=None, outputs=run_btn)
         
         # 点击“生成总结” -> 仅执行总结 (允许用户修改 Markdown 后重新总结)
         summ_btn.click(fn=summarize_func, inputs=md_output, outputs=summary_output)

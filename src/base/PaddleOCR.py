@@ -24,7 +24,7 @@ class PaddleOCRClient:
         if not self.token:
             raise ValueError("Token must be provided via argument or environment variable PADDLE_OCR_TOKEN")
 
-    async def parse(self, file_path: str, output_dir: str = "output", **kwargs) -> List[str]:
+    async def parse(self, file_path: str, output_dir: str = "output", **kwargs) -> str:
         """
         解析文件并保存结果
         :param file_path: PDF 或图片文件路径
@@ -111,7 +111,7 @@ class PaddleOCRClient:
             generated_files.append(full_md_filename)
             logger.info(f"[PaddleOCR] Full markdown document saved at {full_md_filename}")
 
-        return generated_files
+        return output_dir
 
     async def _save_images(self, client: httpx.AsyncClient, images_map: Dict[str, str], output_dir: str):
         """下载并保存 Markdown 中的图片"""
