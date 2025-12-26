@@ -4,3 +4,5 @@ python-dotenv
 httpx
 loguru
 pytest
+gradio
+gradio_pdf
