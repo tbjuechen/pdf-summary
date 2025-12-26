@@ -1,1 +1,1 @@
-from .page import demo
+from .page import create_demo
