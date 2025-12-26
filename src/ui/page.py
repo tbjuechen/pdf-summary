@@ -1,13 +1,13 @@
 import gradio as gr
 import os
-import time
+import asyncio
 
 from gradio_pdf import PDF
 
 # ==========================================
 # 1. 核心处理逻辑 (模拟解析和总结)
 # ==========================================
-def mock_parse(file_obj):
+async def mock_parse(file_obj):
     if file_obj is None:
         return "请先上传文件"
     
@@ -20,16 +20,16 @@ def mock_parse(file_obj):
     filename = os.path.basename(file_path)
     
     print(f"正在解析文件: {filename}...")
-    time.sleep(1) 
+    await asyncio.sleep(1) 
     
     return f"""# {filename} 解析结果\n\n**文件名**: {filename}\n**文件大小**: {os.path.getsize(file_path)/1024:.1f} KB\n\n这里是模拟的解析内容..."""
 
-def mock_summarize(md_content):
+async def mock_summarize(md_content):
     if not md_content:
         return "无内容"
         
     print("正在生成总结...")
-    time.sleep(1)
+    await asyncio.sleep(1)
     return f"【AI 总结】\n这是一份关于该文档的总结...\n\n基于内容片段：{md_content[:20]}..."
 
 # ==========================================
