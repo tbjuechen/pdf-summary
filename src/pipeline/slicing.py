@@ -40,10 +40,8 @@ class PaperSlicer:
         # 构建发送给组长 LLMClient 的消息格式
         system_prompt = """
         你是一个科研论文结构分析师。请分析原文，利用【原文切片法】提取文章各个部分的【准确起始片段】和【准确结束片段】。
-        
-        文章部分包括但不限于：
-        01_Abstract, 02_Introduction, 03_Keywords, 04_Related_Work, 05_Methodology, 
-        06_Experiments, 07_Results, 08_Discussion, 09_Conclusion, 10_References.
+
+        你的任务是帮助用户将论文切分为多个逻辑部分（如摘要、引言、方法、实验、结论等）。请严格按照以下
         
         要求：
         1. 返回 JSON，包含 `_thought` 字段。
