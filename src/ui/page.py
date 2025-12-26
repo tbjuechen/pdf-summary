@@ -72,12 +72,21 @@ def create_demo(parse_func, summarize_func):
         # 4. 交互逻辑
         # ==========================================
         
+        # 辅助函数：控制按钮状态
+        def disable_btn():
+            return gr.Button(interactive=False)
+            
+        def enable_btn():
+            return gr.Button(interactive=True)
+
         # 上传文件后 -> 更新预览
         file_input.change(fn=display_pdf, inputs=file_input, outputs=pdf_preview)
         
-        # 点击“开始解析” -> 先解析 -> 再总结 (链式调用)
-        run_btn.click(fn=parse_func, inputs=file_input, outputs=md_output) \
-               .then(fn=summarize_func, inputs=md_output, outputs=summary_output)
+        # 点击“开始解析” -> 禁用按钮 -> 解析 -> 总结 -> 启用按钮
+        run_btn.click(fn=disable_btn, inputs=None, outputs=run_btn) \
+               .then(fn=parse_func, inputs=file_input, outputs=md_output) \
+               .then(fn=summarize_func, inputs=md_output, outputs=summary_output) \
+               .then(fn=enable_btn, inputs=None, outputs=run_btn)
         
         # 点击“生成总结” -> 仅执行总结 (允许用户修改 Markdown 后重新总结)
         summ_btn.click(fn=summarize_func, inputs=md_output, outputs=summary_output)
