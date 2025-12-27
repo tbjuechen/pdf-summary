@@ -19,6 +19,8 @@ except ImportError:
 
 
 class PaddleOCROutputProcessor:
+    ###调用 PaddleOCR解析PDF，仅保留 doc.md 与 imgs###
+    
     """调用 PaddleOCR 并保留 doc.md 与 imgs 的简单封装。"""
 
     def __init__(
