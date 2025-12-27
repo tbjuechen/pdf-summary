@@ -96,7 +96,7 @@ class MarkdownChunkBuilder:
             image = self._resolve_image(rel_path, image_abs_map, image_rel_map)
             if image:
                 result.append(
-                    ImageData(data=image.data, metadata={}, path=image.path)
+                    ImageData(data=image.data, metadata=dict(image.metadata or {}), path=image.path)
                 )
 
         return result
@@ -122,7 +122,8 @@ class MarkdownChunkBuilder:
         candidate_path = Path(rel_path)
         if candidate_path.exists():
             base64_data = img2base64(str(candidate_path))
-            return ImageData(data=base64_data, metadata={}, path=str(candidate_path))
+            metadata = {"relative_path": candidate_path.name}
+            return ImageData(data=base64_data, metadata=metadata, path=str(candidate_path))
 
         return None
 

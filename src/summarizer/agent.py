@@ -1,8 +1,17 @@
-from ..pipeline import DocumentChunk, Document, ImageData
-from ..base import LLMClient, Message
-
 from typing import List
 import asyncio
+from pathlib import Path
+import sys
+
+try:
+    from ..pipeline import DocumentChunk, Document, ImageData
+    from ..base import LLMClient, Message
+except ImportError:
+    project_root = Path(__file__).resolve().parents[2]
+    if str(project_root) not in sys.path:
+        sys.path.append(str(project_root))
+    from pipeline import DocumentChunk, Document, ImageData
+    from base import LLMClient, Message
 
 class Agent:
     def __init__(self, llm: LLMClient = None, system_prompt: str = ""):
@@ -44,7 +53,10 @@ class DocumentSummarizationAgent(Agent):
         user_msg = Message.user(f"请总结以下文档内容：\n{document.content}")
         # 如果存在图片
         if document.images:
-            [user_msg.add_image(img.data) for img in document.images]
+            for img in document.images:
+                meta = img.metadata or {}
+                display = meta.get("relative_path") or img.path or "embedded-image"
+                user_msg.add_image(img.data, display_url=display)
 
         summary = await self.run(user_msg, **kwargs)
         return summary
@@ -54,7 +66,10 @@ class DocumentSummarizationAgent(Agent):
         async def _summarize_single_chunk(chunk: DocumentChunk) -> str:
             user_msg = Message.user(f"请总结以下文档片段内容：\n{chunk.content}")
             if chunk.images:
-                [user_msg.add_image(img.data) for img in chunk.images]
+                for img in chunk.images:
+                    meta = img.metadata or {}
+                    display = meta.get("relative_path") or img.path or "embedded-image"
+                    user_msg.add_image(img.data, display_url=display)
             
             # 不使用 self.run 以避免污染历史记录
             messages = [Message.system(self.system_prompt), user_msg]
