@@ -103,7 +103,7 @@ class LLMClient:
         self, 
         messages: Union[List[Message], List[Dict[str, Any]]], 
         **kwargs
-    ) -> str:
+    ) -> Message:
         """
         同步聊天接口
         :param messages: 消息列表，支持 Message 对象或字典 [{"role": "user", "content": "..."}]
@@ -121,7 +121,7 @@ class LLMClient:
         self, 
         messages: Union[List[Message], List[Dict[str, Any]]], 
         **kwargs
-    ) -> str:
+    ) -> Message:
         """
         异步聊天接口
         :param messages: 消息列表，支持 Message 对象或字典 [{"role": "user", "content": "..."}]
@@ -135,7 +135,7 @@ class LLMClient:
         assert response.choices[0].message is not None, "模型未返回消息内容"
         return Message.assistant(response.choices[0].message.content.strip())
     
-    def simple_chat(self, system_prompt: str, user_message: str, image_url: str = None, **kwargs) -> str:
+    def simple_chat(self, system_prompt: str, user_message: str, image_url: str = None, **kwargs) -> Message:
         """
         简化的同步聊天接口
         :param system_prompt: 系统提示词
@@ -155,7 +155,7 @@ class LLMClient:
         ]
         return self.chat(messages, **kwargs)
     
-    async def asimple_chat(self, system_prompt: str, user_message: str, image_url: str = None, **kwargs) -> str:
+    async def asimple_chat(self, system_prompt: str, user_message: str, image_url: str = None, **kwargs) -> Message:
         """
         简化的异步聊天接口
         :param system_prompt: 系统提示词

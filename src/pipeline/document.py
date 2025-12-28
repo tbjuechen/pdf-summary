@@ -6,7 +6,7 @@ import hashlib
 @dataclass
 class ImageData:
     """图片数据类"""
-    data: bytes
+    data: str
     metadata: Dict[str, Any]
     path: str
 

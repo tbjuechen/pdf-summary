@@ -7,6 +7,7 @@ class ImageUrl(BaseModel):
     """图片链接详情"""
     url: str
     detail: Literal["auto", "low", "high"] = "auto"
+    display_url: Optional[str] = None
 
 class TextContent(BaseModel):
     """文本内容块"""
@@ -55,12 +56,17 @@ class Message(BaseModel):
             self.content.append(TextContent(text=text))
         return self
 
-    def add_image(self, url: str, detail: Literal["auto", "low", "high"] = "auto") -> "Message":
+    def add_image(
+        self,
+        url: str,
+        detail: Literal["auto", "low", "high"] = "auto",
+        display_url: Optional[str] = None,
+    ) -> "Message":
         """追加图片 (支持链式调用)"""
         self._ensure_list_mode()
         if isinstance(self.content, list):
             self.content.append(
-                ImageContent(image_url=ImageUrl(url=url, detail=detail))
+                ImageContent(image_url=ImageUrl(url=url, detail=detail, display_url=display_url))
             )
         return self
 
@@ -91,6 +97,11 @@ class Message(BaseModel):
                 if isinstance(item, TextContent):
                     parts.append(item.text)
                 elif isinstance(item, ImageContent):
-                    parts.append(f"[IMAGE: {item.image_url.url}]")
+                    raw_url = item.image_url.url
+                    display_url = item.image_url.display_url or raw_url
+                    if not (display_url.startswith("http://") or display_url.startswith("https://")):
+                        if len(display_url) > 64:
+                            display_url = display_url[:30] + "..." + display_url[-10:]
+                    parts.append(f"[IMAGE: {display_url}]")
             display_str = "".join(parts) # 通常多模态内容是紧凑拼接的，或者用换行
         return f"[{self.role}] {display_str}"

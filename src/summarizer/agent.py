@@ -1,7 +1,17 @@
-from ..pipeline import DocumentChunk, Document, ImageData
-from ..base import LLMClient, Message
-
 from typing import List
+import asyncio
+from pathlib import Path
+import sys
+
+try:
+    from ..pipeline import DocumentChunk, Document, ImageData
+    from ..base import LLMClient, Message
+except ImportError:
+    project_root = Path(__file__).resolve().parents[2]
+    if str(project_root) not in sys.path:
+        sys.path.append(str(project_root))
+    from pipeline import DocumentChunk, Document, ImageData
+    from base import LLMClient, Message
 
 class Agent:
     def __init__(self, llm: LLMClient = None, system_prompt: str = ""):
@@ -43,7 +53,48 @@ class DocumentSummarizationAgent(Agent):
         user_msg = Message.user(f"请总结以下文档内容：\n{document.content}")
         # 如果存在图片
         if document.images:
-            [user_msg.add_image(img.data) for img in document.images]
+            for img in document.images:
+                meta = img.metadata or {}
+                display = meta.get("relative_path") or img.path or "embedded-image"
+                user_msg.add_image(img.data, display_url=display)
 
         summary = await self.run(user_msg, **kwargs)
         return summary
+
+    async def summarize_chunks(self, chunks: List[DocumentChunk], **kwargs) -> List[str]:
+        """总结每个文档块的内容"""
+        async def _summarize_single_chunk(chunk: DocumentChunk) -> str:
+            user_msg = Message.user(f"请总结以下文档片段内容：\n{chunk.content}")
+            if chunk.images:
+                for img in chunk.images:
+                    meta = img.metadata or {}
+                    display = meta.get("relative_path") or img.path or "embedded-image"
+                    user_msg.add_image(img.data, display_url=display)
+            
+            # 不使用 self.run 以避免污染历史记录
+            messages = [Message.system(self.system_prompt), user_msg]
+            response = await self.llm.achat(messages, **kwargs)
+            return response.content
+
+        tasks = [_summarize_single_chunk(chunk) for chunk in chunks]
+        return await asyncio.gather(*tasks)
+
+    async def refine_summary(self, document_summary: str, chunk_summaries: List[str], **kwargs) -> str:
+        """综合文档总结和块总结，生成最终总结"""
+        chunks_text = ""
+        for i, summary in enumerate(chunk_summaries):
+            chunks_text += f"片段 {i+1} 总结：\n{summary}\n\n"
+            
+        prompt = (
+            f"以下是文档的总体总结：\n{document_summary}\n\n"
+            f"以下是文档各片段的详细总结：\n{chunks_text}"
+            "请结合文档的总体总结和各片段的详细总结，生成一份最终的文档总结。\n"
+            "要求：\n"
+            "1. 补充总体总结中缺失的重要细节。\n"
+            "2. 修正总体总结中可能存在的偏差。\n"
+            "3. 保持总结的连贯性、条理性和准确性。\n"
+            "4. 最终输出应该是一篇完整的总结文章。"
+        )
+        
+        user_msg = Message.user(prompt)
+        return await self.run(user_msg, **kwargs)
